@@ -1,0 +1,578 @@
+--[[
+  SPEED HUB 🎃 - Carregamento + Hub Visual (neon abóbora)
+  - Tela de loading (névoa, gradiente, barra)
+  - Ao terminar: Hub "Spëëd Hūb 🎃" aparece (centralizado)
+  - Hub movível e redimensionável
+  - Botão X -> popup confirmação (Sim/Não)
+  - Se Sim: Hub some, bolinha reaparece (movível) no canto direito
+  - Clicando bolinha: reabre Hub com animação
+--]]
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+local guiParent = player:WaitForChild("PlayerGui")
+
+-- Remove GUI anterior com mesmo nome, se existir
+local existing = guiParent:FindFirstChild("SpeedHubLoadingAndHub")
+if existing then existing:Destroy() end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SpeedHubLoadingAndHub"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.Parent = guiParent
+
+-- -------------------- LOADING UI --------------------
+local loadingContainer = Instance.new("Frame")
+loadingContainer.Name = "LoadingContainer"
+loadingContainer.Size = UDim2.new(1,0,1,0)
+loadingContainer.BackgroundColor3 = Color3.fromRGB(0,0,0)
+loadingContainer.Parent = screenGui
+
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,120,0)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(20,0,0))
+}
+gradient.Rotation = 270
+gradient.Parent = loadingContainer
+
+local fog = Instance.new("ImageLabel")
+fog.Name = "Fog"
+fog.BackgroundTransparency = 1
+fog.Size = UDim2.new(1.5,0,1.5,0)
+fog.Position = UDim2.new(-0.25,0,-0.25,0)
+fog.Image = "rbxassetid://7074378599" -- textura de fumaça (pode trocar)
+fog.ImageTransparency = 0.85
+fog.ZIndex = 0
+fog.Parent = loadingContainer
+
+-- névoa leve em movimento
+task.spawn(function()
+	while loadingContainer.Parent do
+		local newPos = UDim2.new(-0.25 + math.random()*0.05, 0, -0.25 + math.random()*0.05, 0)
+		TweenService:Create(fog, TweenInfo.new(12, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {Position = newPos}):Play()
+		task.wait(12)
+	end
+end)
+
+local loadingFrame = Instance.new("Frame")
+loadingFrame.Name = "InnerLoadingFrame"
+loadingFrame.Size = UDim2.new(0,420,0,140)
+loadingFrame.AnchorPoint = Vector2.new(0.5,0.5)
+loadingFrame.Position = UDim2.new(0.5,0,0.7,0)
+loadingFrame.BackgroundTransparency = 1
+loadingFrame.Parent = loadingContainer
+Instance.new("UICorner", loadingFrame).CornerRadius = UDim.new(0,8)
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1,0,0.5,0)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "🎃 Spëëd Hūb 🎃"
+title.TextColor3 = Color3.fromRGB(255,140,0)
+title.TextStrokeTransparency = 0.4
+title.TextScaled = true
+title.Font = Enum.Font.GothamBlack
+title.Parent = loadingFrame
+
+local barBackground = Instance.new("Frame")
+barBackground.Name = "BarBackground"
+barBackground.Size = UDim2.new(1,0,0.25,0)
+barBackground.Position = UDim2.new(0,0,0.7,0)
+barBackground.BackgroundColor3 = Color3.fromRGB(30,0,0)
+barBackground.BorderSizePixel = 0
+barBackground.Parent = loadingFrame
+Instance.new("UICorner", barBackground).CornerRadius = UDim.new(0,20)
+
+local progressBar = Instance.new("Frame")
+progressBar.Name = "ProgressBar"
+progressBar.Size = UDim2.new(0,0,1,0)
+progressBar.BackgroundColor3 = Color3.fromRGB(255,130,0)
+progressBar.BorderSizePixel = 0
+progressBar.Parent = barBackground
+Instance.new("UICorner", progressBar).CornerRadius = UDim.new(0,20)
+
+local barGradient = Instance.new("UIGradient")
+barGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,150)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,120,0)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,70,0))
+}
+barGradient.Rotation = 0
+barGradient.Parent = progressBar
+
+local percentLabel = Instance.new("TextLabel")
+percentLabel.Name = "Percent"
+percentLabel.Size = UDim2.new(1,0,0.3,0)
+percentLabel.Position = UDim2.new(0,0,1.1,0)
+percentLabel.BackgroundTransparency = 1
+percentLabel.Text = "0%"
+percentLabel.TextColor3 = Color3.fromRGB(255,255,255)
+percentLabel.TextScaled = true
+percentLabel.Font = Enum.Font.Gotham
+percentLabel.Parent = loadingFrame
+
+-- som ambiente (opcional)
+local sound = Instance.new("Sound", loadingContainer)
+sound.SoundId = "rbxassetid://9125985133"
+sound.Volume = 0.35
+sound.Looped = true
+pcall(function() sound:Play() end)
+
+-- brilho oscilante do background
+task.spawn(function()
+	while loadingContainer.Parent do
+		local newColor = Color3.fromRGB(255, math.random(90,160), 0)
+		local seq = ColorSequence.new{
+			ColorSequenceKeypoint.new(0, newColor),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(20,0,0))
+		}
+		TweenService:Create(gradient, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Color = seq}):Play()
+		task.wait(3)
+	end
+end)
+
+-- animação do brilho do gradiente da barra
+task.spawn(function()
+	while loadingContainer.Parent do
+		TweenService:Create(barGradient, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Rotation = math.random(0,180)}):Play()
+		task.wait(1.5)
+	end
+end)
+
+local function runLoading()
+	for i=1,100 do
+		local goal = UDim2.new(i/100,0,1,0)
+		TweenService:Create(progressBar, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = goal}):Play()
+		percentLabel.Text = tostring(i) .. "%"
+		task.wait(0.05)
+	end
+end
+
+-- run loading
+runLoading()
+
+-- fade out loading contents but keep loadingContainer as hub background holder
+task.wait(0.6)
+TweenService:Create(progressBar, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+TweenService:Create(loadingFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	Size = UDim2.new(0,0,0,0),
+	Position = UDim2.new(0.5,0,0.5,0)
+}):Play()
+TweenService:Create(fog, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {ImageTransparency = 1}):Play()
+TweenService:Create(sound, TweenInfo.new(1), {Volume = 0}):Play()
+task.wait(1.0)
+if loadingFrame and loadingFrame.Parent then loadingFrame:Destroy() end
+
+-- -------------------- HUB VISUAL (neon abóbora) --------------------
+local hubFrame = Instance.new("Frame")
+hubFrame.Name = "HubFrame"
+hubFrame.Size = UDim2.new(0.75,0,0.65,0) -- tamanho inicial razoável
+hubFrame.AnchorPoint = Vector2.new(0.5,0.5)
+hubFrame.Position = UDim2.new(0.5,0,0.5,0) -- centralizado inicialmente
+hubFrame.BackgroundColor3 = Color3.fromRGB(12,12,12)
+hubFrame.BorderSizePixel = 0
+hubFrame.Parent = loadingContainer
+Instance.new("UICorner", hubFrame).CornerRadius = UDim.new(0,10)
+
+-- topbar (usado para arrastar)
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1,0,0,40)
+topBar.Position = UDim2.new(0,0,0,0)
+topBar.BackgroundTransparency = 1
+topBar.Parent = hubFrame
+
+local hubTitle = Instance.new("TextLabel")
+hubTitle.Name = "HubTitle"
+hubTitle.Size = UDim2.new(0.6,0,1,0)
+hubTitle.Position = UDim2.new(0.02,0,0,0)
+hubTitle.BackgroundTransparency = 1
+hubTitle.Text = "Spëëd Hūb 🎃"
+hubTitle.TextColor3 = Color3.fromRGB(255,170,60)
+hubTitle.TextScaled = true
+hubTitle.TextXAlignment = Enum.TextXAlignment.Left
+hubTitle.Font = Enum.Font.GothamBold
+hubTitle.Parent = topBar
+
+-- close X button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0,36,0,28)
+closeBtn.AnchorPoint = Vector2.new(1,0)
+closeBtn.Position = UDim2.new(1,-8,0,6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+closeBtn.Text = "✕"
+closeBtn.TextScaled = true
+closeBtn.TextColor3 = Color3.fromRGB(255,150,0)
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = topBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1,0)
+
+-- accent line
+local accentLine = Instance.new("Frame")
+accentLine.Size = UDim2.new(1,-24,0,4)
+accentLine.Position = UDim2.new(0.02,0,1,-6)
+accentLine.BackgroundColor3 = Color3.fromRGB(255,120,0)
+accentLine.BorderSizePixel = 0
+accentLine.Parent = topBar
+Instance.new("UICorner", accentLine).CornerRadius = UDim.new(0,4)
+local accentGlow = Instance.new("UIStroke", accentLine)
+accentGlow.Color = Color3.fromRGB(255,120,0)
+accentGlow.Thickness = 3
+accentGlow.Transparency = 0.6
+
+-- inner container (menu + panel)
+local inner = Instance.new("Frame")
+inner.Name = "Inner"
+inner.Size = UDim2.new(1,-20,1,-64)
+inner.Position = UDim2.new(0,10,0,54)
+inner.BackgroundTransparency = 1
+inner.Parent = hubFrame
+
+-- left menu
+local menu = Instance.new("Frame")
+menu.Name = "LeftMenu"
+menu.Size = UDim2.new(0,220,1,0)
+menu.Position = UDim2.new(0,0,0,0)
+menu.BackgroundColor3 = Color3.fromRGB(18,18,18)
+menu.BorderSizePixel = 0
+menu.Parent = inner
+Instance.new("UICorner", menu).CornerRadius = UDim.new(0,6)
+
+local menuLayout = Instance.new("UIListLayout", menu)
+menuLayout.Padding = UDim.new(0,8)
+menuLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+menuLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- menu header (avatar circle)
+local avatarFrame = Instance.new("Frame")
+avatarFrame.Size = UDim2.new(0,180,0,80)
+avatarFrame.BackgroundTransparency = 1
+avatarFrame.Parent = menu
+
+local avatarCircle = Instance.new("ImageLabel")
+avatarCircle.Size = UDim2.new(0,64,0,64)
+avatarCircle.Position = UDim2.new(0.5,-32,0,6)
+avatarCircle.BackgroundTransparency = 1
+avatarCircle.Image = "" -- opcional
+avatarCircle.ImageColor3 = Color3.fromRGB(60,60,60)
+avatarCircle.Parent = avatarFrame
+Instance.new("UICorner", avatarCircle).CornerRadius = UDim.new(1,0)
+
+-- buttons (visuais)
+local buttons = {"Fun","Avatar","House","Car","RGB","Music","Troll","Spam","Scripts","Teleports"}
+local buttonFrames = {}
+
+for i, name in ipairs(buttons) do
+	local btn = Instance.new("TextButton")
+	btn.Name = "Btn_"..name
+	btn.Text = "  "..name
+	btn.Size = UDim2.new(0.9,0,0,36)
+	btn.AnchorPoint = Vector2.new(0.5,0)
+	btn.Position = UDim2.new(0.5,0,0,0)
+	btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	btn.BorderSizePixel = 0
+	btn.TextColor3 = Color3.fromRGB(200,200,200)
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.Parent = menu
+	btn.AutoButtonColor = false
+	btn.TextScaled = true
+	btn.Font = Enum.Font.Gotham
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+	-- glow stroke
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Color = Color3.fromRGB(255,120,0)
+	stroke.Transparency = 0.85
+	stroke.Thickness = 1.5
+
+	local ico = Instance.new("TextLabel")
+	ico.Size = UDim2.new(0,28,0,28)
+	ico.Position = UDim2.new(0,8,0,4)
+	ico.BackgroundTransparency = 1
+	ico.Text = "•"
+	ico.TextColor3 = Color3.fromRGB(255,120,0)
+	ico.TextScaled = true
+	ico.Font = Enum.Font.Gotham
+	ico.Parent = btn
+
+	buttonFrames[name] = btn
+end
+
+-- right panel (visual)
+local panel = Instance.new("Frame")
+panel.Name = "RightPanel"
+panel.Size = UDim2.new(1, -240, 1, 0)
+panel.Position = UDim2.new(0, 240, 0, 0)
+panel.BackgroundColor3 = Color3.fromRGB(12,12,12)
+panel.BorderSizePixel = 0
+panel.Parent = inner
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0,6)
+
+local panelTitle = Instance.new("TextLabel")
+panelTitle.Size = UDim2.new(1, -32, 0, 36)
+panelTitle.Position = UDim2.new(0,16,0,10)
+panelTitle.BackgroundTransparency = 1
+panelTitle.Text = "Welcome to Spëëd Hūb 🎃"
+panelTitle.TextColor3 = Color3.fromRGB(255,170,60)
+panelTitle.TextScaled = true
+panelTitle.TextXAlignment = Enum.TextXAlignment.Left
+panelTitle.Font = Enum.Font.Gotham
+panelTitle.Parent = panel
+
+local contentArea = Instance.new("Frame")
+contentArea.Size = UDim2.new(1, -32, 1, -60)
+contentArea.Position = UDim2.new(0,16,0,56)
+contentArea.BackgroundTransparency = 1
+contentArea.Parent = panel
+
+-- sample placeholder cards
+for i=1,6 do
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(0.48,0,0,84)
+	card.Position = UDim2.new(((i-1)%2)*0.5, (i%2==1) and 0 or 12, math.floor((i-1)/2)*96, 0)
+	card.AnchorPoint = Vector2.new(0,0)
+	card.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	card.BorderSizePixel = 0
+	card.Parent = contentArea
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0,6)
+	-- title
+	local cTitle = Instance.new("TextLabel")
+	cTitle.Size = UDim2.new(1, -12, 0, 36)
+	cTitle.Position = UDim2.new(0,8,0,8)
+	cTitle.BackgroundTransparency = 1
+	cTitle.Text = "Sample Option "..i
+	cTitle.TextColor3 = Color3.fromRGB(255,180,70)
+	cTitle.TextScaled = true
+	cTitle.TextXAlignment = Enum.TextXAlignment.Left
+	cTitle.Font = Enum.Font.Gotham
+	cTitle.Parent = card
+	-- desc
+	local cDesc = Instance.new("TextLabel")
+	cDesc.Size = UDim2.new(1, -12, 0, 36)
+	cDesc.Position = UDim2.new(0,8,0,46)
+	cDesc.BackgroundTransparency = 1
+	cDesc.Text = "Descrição visual — somente design."
+	cDesc.TextColor3 = Color3.fromRGB(180,180,180)
+	cDesc.TextScaled = true
+	cDesc.TextXAlignment = Enum.TextXAlignment.Left
+	cDesc.Font = Enum.Font.Gotham
+	cDesc.Parent = card
+end
+
+-- resize grip (bottom-right)
+local resizeGrip = Instance.new("Frame")
+resizeGrip.Name = "ResizeGrip"
+resizeGrip.Size = UDim2.new(0,18,0,18)
+resizeGrip.AnchorPoint = Vector2.new(1,1)
+resizeGrip.Position = UDim2.new(1,-8,1,-8)
+resizeGrip.BackgroundColor3 = Color3.fromRGB(30,30,30)
+resizeGrip.BorderSizePixel = 0
+resizeGrip.Parent = hubFrame
+Instance.new("UICorner", resizeGrip).CornerRadius = UDim.new(0,6)
+
+local gripIcon = Instance.new("TextLabel")
+gripIcon.Size = UDim2.new(1,0,1,0)
+gripIcon.BackgroundTransparency = 1
+gripIcon.Text = "⇲"
+gripIcon.TextScaled = true
+gripIcon.Font = Enum.Font.Gotham
+gripIcon.TextColor3 = Color3.fromRGB(255,140,0)
+gripIcon.Parent = resizeGrip
+
+-- confirmation popup (hidden)
+local confirmFrame = Instance.new("Frame")
+confirmFrame.Name = "ConfirmFrame"
+confirmFrame.Size = UDim2.new(0,340,0,180)
+confirmFrame.AnchorPoint = Vector2.new(0.5,0.5)
+confirmFrame.Position = UDim2.new(0.5,0.5,0.5,0)
+confirmFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+confirmFrame.BorderSizePixel = 0
+confirmFrame.Visible = false
+confirmFrame.Parent = hubFrame
+Instance.new("UICorner", confirmFrame).CornerRadius = UDim.new(0,12)
+local confirmStroke = Instance.new("UIStroke", confirmFrame)
+confirmStroke.Color = Color3.fromRGB(255,120,0)
+confirmStroke.Thickness = 2
+confirmStroke.Transparency = 0.5
+
+local confirmText = Instance.new("TextLabel")
+confirmText.Size = UDim2.new(1,-20,0.6,0)
+confirmText.Position = UDim2.new(0,10,0.15,0)
+confirmText.BackgroundTransparency = 1
+confirmText.Text = "Quer mesmo fechar este Hub incrível?"
+confirmText.TextColor3 = Color3.fromRGB(255,170,60)
+confirmText.TextScaled = true
+confirmText.Font = Enum.Font.GothamBold
+confirmText.Parent = confirmFrame
+
+local yesBtn = Instance.new("TextButton")
+yesBtn.Size = UDim2.new(0.4,0,0.25,0)
+yesBtn.Position = UDim2.new(0.08,0,0.7,0)
+yesBtn.BackgroundColor3 = Color3.fromRGB(255,120,0)
+yesBtn.Text = "Sim"
+yesBtn.TextScaled = true
+yesBtn.TextColor3 = Color3.fromRGB(0,0,0)
+yesBtn.Font = Enum.Font.GothamBold
+yesBtn.Parent = confirmFrame
+Instance.new("UICorner", yesBtn).CornerRadius = UDim.new(0,8)
+
+local noBtn = Instance.new("TextButton")
+noBtn.Size = UDim2.new(0.4,0,0.25,0)
+noBtn.Position = UDim2.new(0.52,0,0.7,0)
+noBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+noBtn.Text = "Não"
+noBtn.TextScaled = true
+noBtn.TextColor3 = Color3.fromRGB(255,170,60)
+noBtn.Font = Enum.Font.GothamBold
+noBtn.Parent = confirmFrame
+Instance.new("UICorner", noBtn).CornerRadius = UDim.new(0,8)
+
+-- reopen floating button (on top of screenGui so it's always clickable)
+local reopenButton = Instance.new("TextButton")
+reopenButton.Name = "ReopenButton"
+reopenButton.Size = UDim2.new(0,56,0,56)
+reopenButton.AnchorPoint = Vector2.new(1,1)
+reopenButton.Position = UDim2.new(1,-20,1,-80) -- initial corner-right
+reopenButton.BackgroundColor3 = Color3.fromRGB(255,120,0)
+reopenButton.Text = "🎃"
+reopenButton.TextScaled = true
+reopenButton.TextColor3 = Color3.fromRGB(0,0,0)
+reopenButton.Visible = false
+reopenButton.Parent = screenGui
+Instance.new("UICorner", reopenButton).CornerRadius = UDim.new(1,0)
+
+-- glow animation for accentLine
+task.spawn(function()
+	while hubFrame.Parent do
+		TweenService:Create(accentLine, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.15}):Play()
+		task.wait(1.1)
+		TweenService:Create(accentLine, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.6}):Play()
+		task.wait(1.1)
+	end
+end)
+
+-- visual tab select (buttons only change highlight and panel title)
+local currentSelected = nil
+local function selectTab(name)
+	for k,btn in pairs(buttonFrames) do
+		btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+		btn.TextColor3 = Color3.fromRGB(200,200,200)
+		if btn:FindFirstChildOfClass("UIStroke") then
+			btn.UIStroke.Transparency = 0.85
+		end
+	end
+	local selected = buttonFrames[name]
+	if selected then
+		selected.BackgroundColor3 = Color3.fromRGB(34,18,0)
+		selected.TextColor3 = Color3.fromRGB(255,210,120)
+		if selected:FindFirstChildOfClass("UIStroke") then
+			selected.UIStroke.Transparency = 0
+		end
+		panelTitle.Text = name.." · Visual Menu"
+		currentSelected = name
+	end
+end
+
+for name, btn in pairs(buttonFrames) do
+	btn.MouseButton1Click:Connect(function()
+		selectTab(name)
+	end)
+end
+selectTab(buttons[1])
+
+-- ------------- Dragging Hub -------------
+do
+	local dragInfo = {
+		dragging = false,
+		startPos = nil,
+		startMouse = nil
+	}
+
+	topBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragInfo.dragging = true
+			dragInfo.startPos = hubFrame.Position
+			dragInfo.startMouse = input.Position
+		end
+	end)
+	
+	topBar.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragInfo.dragging = false
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if dragInfo.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragInfo.startMouse
+			local screenSize = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920,1080)
+			-- compute new position in scale
+			local offsetX = delta.X / screenSize.X
+			local offsetY = delta.Y / screenSize.Y
+			local newPos = UDim2.new(dragInfo.startPos.X.Scale, dragInfo.startPos.X.Offset + delta.X, dragInfo.startPos.Y.Scale, dragInfo.startPos.Y.Offset + delta.Y)
+			hubFrame.Position = newPos
+		end
+	end)
+end
+
+-- ------------- Resizing Hub -------------
+do
+	local resizing = false
+	local startSize, startMouse, startPos
+	
+	resizeGrip.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			resizing = true
+			startSize = hubFrame.Size
+			startMouse = input.Position
+			startPos = hubFrame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					resizing = false
+				end
+			end)
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local camera = workspace.CurrentCamera
+			local screen = camera and camera.ViewportSize or Vector2.new(1920,1080)
+			local delta = input.Position - startMouse
+			-- convert pixel deltas to absolute offsets on size
+			local newWidth = math.clamp(startSize.X.Offset + delta.X, 300, screen.X - 80)
+			local newHeight = math.clamp(startSize.Y.Offset + delta.Y, 200, screen.Y - 80)
+			hubFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+		end
+	end)
+end
+
+-- ------------- Reopen Button Draggable -------------
+do
+	local dragging = false
+	local dragStart = nil
+	local origPos = nil
+	
+	reopenButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			origPos = reopenButton.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local screen = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920,1080)
+			local delta = input.Position - dragStart
+			
